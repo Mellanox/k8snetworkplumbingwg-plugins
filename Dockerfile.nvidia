@@ -16,6 +16,5 @@ RUN mkdir -p /usr/src/cni/bin && \
 LABEL io.k8s.display-name="Container Network Plugins"
 
 ADD ./entrypoint.sh /
-COPY . /src
 
 ENTRYPOINT ["/entrypoint.sh"]
