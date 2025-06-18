@@ -1,6 +1,7 @@
 ARG BASE_IMAGE=nvcr.io/nvidia/doca/doca:3.0.0-base-rt-cuda12.8.0
 
 FROM ${BASE_IMAGE}
+RUN apt-get update -y && apt-get install -y curl
 
 WORKDIR /
 
