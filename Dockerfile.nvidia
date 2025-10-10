@@ -1,5 +1,8 @@
 ARG BASE_IMAGE=nvcr.io/nvidia/doca/doca:3.0.0-base-rt-host
 
+ARG GOPROXY
+ENV GOPROXY=$GOPROXY
+
 FROM ${BASE_IMAGE}
 RUN apt-get update -y && apt-get install -y curl
 
