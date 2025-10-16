@@ -11,7 +11,7 @@ RUN mkdir -p /usr/src/cni/bin && \
     tar -xvf cni-plugins-linux-${TARGETARCH}-${VERSION}.tgz -C /usr/src/cni/bin/ && \
     echo done
 
-FROM nvcr.io/nvidia/distroless/go:v3.1.12-dev AS entrypoint
+FROM nvcr.io/nvidia/distroless/go:v3.1.13-dev AS entrypoint
 
 USER 0:0
 SHELL ["/busybox/sh", "-c"]
