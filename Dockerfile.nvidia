@@ -1,13 +1,6 @@
-ARG BASE_IMAGE=nvcr.io/nvidia/doca/doca:3.0.0-base-rt-host
+FROM alpine:3 AS pkgs
 
-FROM ${BASE_IMAGE}
-
-ARG GOPROXY
-ENV GOPROXY=${GOPROXY}
-
-RUN apt-get update -y && apt-get install -y curl
-
-WORKDIR /
+RUN apk add --no-cache curl
 
 ARG VERSION=v1.3.0
 ARG TARGETARCH
@@ -17,6 +10,16 @@ RUN mkdir -p /usr/src/cni/bin && \
     curl -L -O https://github.com/containernetworking/plugins/releases/download/${VERSION}/cni-plugins-linux-${TARGETARCH}-${VERSION}.tgz && \
     tar -xvf cni-plugins-linux-${TARGETARCH}-${VERSION}.tgz -C /usr/src/cni/bin/ && \
     echo done
+
+FROM nvcr.io/nvidia/distroless/go:v3.1.13-dev AS entrypoint
+
+USER 0:0
+SHELL ["/busybox/sh", "-c"]
+RUN ln -s /busybox/sh /bin/sh
+
+COPY --from=pkgs /usr/src/cni/bin /usr/src/cni/bin
+
+WORKDIR /
 
 LABEL io.k8s.display-name="Container Network Plugins"
 
