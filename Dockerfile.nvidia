@@ -1,3 +1,5 @@
+ARG BASE_IMAGE_GO_DISTROLESS_DEV
+
 FROM alpine:3 AS pkgs
 
 RUN apk add --no-cache curl
@@ -11,7 +13,7 @@ RUN mkdir -p /usr/src/cni/bin && \
     tar -xvf cni-plugins-linux-${TARGETARCH}-${VERSION}.tgz -C /usr/src/cni/bin/ && \
     echo done
 
-FROM nvcr.io/nvidia/distroless/go:v3.2.0-dev AS entrypoint
+FROM ${BASE_IMAGE_GO_DISTROLESS_DEV:-nvcr.io/nvidia/distroless/go:v3.2.1-dev} AS entrypoint
 
 USER 0:0
 SHELL ["/busybox/sh", "-c"]
