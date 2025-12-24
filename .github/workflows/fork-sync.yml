@@ -24,6 +24,6 @@ jobs:
     with:
       upstream-owner: k8snetworkplumbingwg
       upstream-repo: plugins
-      default-branch: releas
+      default-branch: release
     secrets:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
