@@ -26,4 +26,4 @@ jobs:
       upstream-repo: plugins
       default-branch: release
     secrets:
-      gh_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_token: ${{ secrets.GH_TOKEN_NVIDIA_CI_CD }}
