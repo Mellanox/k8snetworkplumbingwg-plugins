@@ -27,7 +27,7 @@ jobs:
       registry-internal: nvcr.io/nvstaging/mellanox
       service-account-username: nvidia-ci-cd
       service-account-email: svc-cloud-orch-gh@nvidia.com
-      components: '[{"name": "CniPlugins", "imageName": "plugins", "Dockerfile": "Dockerfile.nvidia"}]'
+      components: '[{"name": "CniPlugins", "imageName": "plugins", "dockerfile": "Dockerfile.nvidia"}]'
     secrets:
       registry-username: ${{ secrets.NVCR_USERNAME }}
       registry-token: ${{ secrets.NVCR_TOKEN }}
