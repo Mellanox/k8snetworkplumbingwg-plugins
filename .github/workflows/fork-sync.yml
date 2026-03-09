@@ -1,0 +1,99 @@
+# 2025 NVIDIA CORPORATION & AFFILIATES
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+name: Fork Sync
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # nightly
+  workflow_dispatch:    # enable manual trigger
+
+jobs:
+  sync-default-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN_NVIDIA_CI_CD }}
+      - name: Sync main from containernetworking/plugins
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/containernetworking/plugins.git
+          git fetch upstream main
+          git merge upstream/main --no-edit
+          git push origin main
+
+  lookup-most-recent-release-branch:
+    runs-on: ubuntu-latest
+    needs: sync-default-branch
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lookup most recent release branch
+        id: lookup-most-recent-release-branch
+        run: |
+          git fetch --all --tags
+          most_recent_release_branch=$(
+            git branch -r \
+              | grep 'network-operator-[0-9]*\.[0-9]*\.x' \
+              | sed 's#.*/##' \
+              | sed 's/network-operator-//' \
+              | sort -V \
+              | tail -n 1 \
+              | xargs -I{} echo "network-operator-{}"
+          )
+          echo most_recent_release_branch=$most_recent_release_branch | tee -a $GITHUB_OUTPUT
+
+          most_recent_release_branch_major_minor=$(echo $most_recent_release_branch | cut -d '-' -f 3 | sed 's/.x//')
+          if git tag --list | grep $most_recent_release_branch_major_minor | grep rc; then
+            echo release_branch_has_rc_tag=true | tee -a $GITHUB_OUTPUT
+          else
+            echo release_branch_has_rc_tag=false | tee -a $GITHUB_OUTPUT
+          fi
+    outputs:
+      most_recent_release_branch: ${{ steps.lookup-most-recent-release-branch.outputs.most_recent_release_branch }}
+      release_branch_has_rc_tag: ${{ steps.lookup-most-recent-release-branch.outputs.release_branch_has_rc_tag }}
+
+  sync-latest-release-branch:
+    runs-on: ubuntu-latest
+    needs: lookup-most-recent-release-branch
+    if: ${{ needs.lookup-most-recent-release-branch.outputs.most_recent_release_branch && needs.lookup-most-recent-release-branch.outputs.release_branch_has_rc_tag == 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.lookup-most-recent-release-branch.outputs.most_recent_release_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN_NVIDIA_CI_CD }}
+      - name: Rebase onto upstream branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git rebase origin/main
+      - name: Push rebased branch
+        run: |
+          git push origin ${{ needs.lookup-most-recent-release-branch.outputs.most_recent_release_branch }} --force-with-lease
+
+  update-issue-status:
+    if: always()
+    uses: Mellanox/cloud-orchestration-reusable-workflows/.github/workflows/issue-status-update-reusable.yml@main
+    needs:
+      - sync-default-branch
+      - sync-latest-release-branch
+    with:
+      workflow-name: fork-sync
+      is-passing: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+      workflow-run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    secrets:
+      gh-token: ${{ secrets.GH_TOKEN_NVIDIA_CI_CD }}
