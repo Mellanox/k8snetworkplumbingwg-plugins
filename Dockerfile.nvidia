@@ -1,0 +1,47 @@
+ARG BASE_IMAGE_GO_DISTROLESS_DEV
+
+# Build stage: compile CNI plugins from source (same method as release.yaml)
+FROM golang:1.25-alpine AS builder
+
+ARG GOPROXY
+ENV GOPROXY=$GOPROXY
+
+RUN apk add --no-cache git
+
+ARG VERSION=v1.9.0
+ARG TARGETARCH
+ENV TARGETARCH=${TARGETARCH:-amd64}
+# Map Docker ARCH to Go ARCH (e.g. arm/v7 -> arm)
+ENV GOARCH=${TARGETARCH}
+ENV CGO_ENABLED=0
+ENV GOFLAGS="-mod=vendor"
+
+WORKDIR /usr/src/plugins
+
+COPY go.mod go.sum ./
+COPY vendor ./vendor
+COPY pkg ./pkg
+COPY plugins ./plugins
+COPY build_linux.sh ./
+
+RUN mkdir -p bin && \
+    ./build_linux.sh -ldflags "-extldflags -static -X github.com/containernetworking/plugins/pkg/utils/buildversion.BuildVersion=${VERSION}"
+
+FROM ${BASE_IMAGE_GO_DISTROLESS_DEV:-nvcr.io/nvidia/distroless/go:v4.0.2-dev} AS entrypoint
+
+USER 0:0
+SHELL ["/busybox/sh", "-c"]
+RUN ln -s /busybox/sh /bin/sh
+
+COPY --from=builder /usr/src/plugins/bin /usr/src/cni/bin
+COPY --from=builder /usr/src/plugins/pkg /src/pkg
+COPY --from=builder /usr/src/plugins/plugins /src/plugins
+
+WORKDIR /
+
+LABEL io.k8s.display-name="Container Network Plugins"
+
+ADD ./entrypoint.sh /
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
