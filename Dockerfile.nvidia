@@ -22,26 +22,22 @@ COPY go.mod go.sum ./
 COPY vendor ./vendor
 COPY pkg ./pkg
 COPY plugins ./plugins
+COPY cmd ./cmd
 COPY build_linux.sh ./
 
-RUN mkdir -p bin && \
-    ./build_linux.sh -ldflags "-extldflags -static -X github.com/containernetworking/plugins/pkg/utils/buildversion.BuildVersion=${VERSION}"
+RUN ./build_linux.sh -ldflags "-extldflags -static -X github.com/containernetworking/plugins/pkg/utils/buildversion.BuildVersion=${VERSION}"
 
 FROM ${BASE_IMAGE_GO_DISTROLESS_DEV:-nvcr.io/nvidia/distroless/go:v4.0.2-dev} AS entrypoint
 
 USER 0:0
-SHELL ["/busybox/sh", "-c"]
-RUN ln -s /busybox/sh /bin/sh
 
 COPY --from=builder /usr/src/plugins/bin /usr/src/cni/bin
 COPY --from=builder /usr/src/plugins/pkg /src/pkg
 COPY --from=builder /usr/src/plugins/plugins /src/plugins
+COPY --from=builder /usr/src/plugins/bin/entrypoint /entrypoint
 
 WORKDIR /
 
 LABEL io.k8s.display-name="Container Network Plugins"
 
-ADD ./entrypoint.sh /
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint"]
