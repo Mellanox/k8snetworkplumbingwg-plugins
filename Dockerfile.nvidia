@@ -4,7 +4,7 @@ FROM alpine:3 AS pkgs
 
 RUN apk add --no-cache curl
 
-ARG VERSION=v1.9.0
+ARG VERSION=v1.9.1
 ARG TARGETARCH
 ENV TARGETARCH=${TARGETARCH:-amd64}
 
