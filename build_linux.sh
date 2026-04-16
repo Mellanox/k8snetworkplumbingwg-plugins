@@ -21,3 +21,6 @@ for d in $PLUGINS; do
 		fi
 	fi
 done
+
+echo "  entrypoint"
+CGO_ENABLED=0 ${GO:-go} build -o "${PWD}/bin/entrypoint" -ldflags "-extldflags -static" ./cmd/entrypoint/
