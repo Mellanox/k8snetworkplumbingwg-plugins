@@ -5,16 +5,16 @@
 
 version: 2
 updates:
-  - package-ecosystem: "docker"  # See documentation for possible values
-    directory: "/.github/actions/retest-action"  # Location of package manifests
+  - package-ecosystem: "docker" # See documentation for possible values
+    directory: "/.github/actions/retest-action" # Location of package manifests
     schedule:
       interval: "weekly"
-  - package-ecosystem: "github-actions"  # See documentation for possible values
-    directory: "/"  # Location of package manifests
+  - package-ecosystem: "github-actions" # See documentation for possible values
+    directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
-  - package-ecosystem: "gomod"  # See documentation for possible values
-    directory: "/"  # Location of package manifests
+  - package-ecosystem: "gomod" # See documentation for possible values
+    directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
     groups:
@@ -23,3 +23,39 @@ updates:
           - "*"
         exclude-patterns:
           - "github.com/containernetworking/*"
+  - package-ecosystem: "docker" # See documentation for possible values
+    directory: "/.github/actions/retest-action" # Location of package manifests
+    schedule:
+      interval: "weekly"
+    target-branch: network-operator-26.1.x
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+  - package-ecosystem: "github-actions" # See documentation for possible values
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "weekly"
+    target-branch: network-operator-26.1.x
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+  - package-ecosystem: "gomod" # See documentation for possible values
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "weekly"
+    groups:
+      golang:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github.com/containernetworking/*"
+    target-branch: network-operator-26.1.x
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
