@@ -45,9 +45,13 @@ jobs:
         id: lookup-most-recent-release-branch
         run: |
           git fetch --all --tags
+          # Match only release branches named origin/network-operator-X.Y.x.
+          # A looser substring match also hits dependabot branches such as
+          # origin/dependabot/go_modules/network-operator-26.4.x/golang-...,
+          # which then become bogus names like network-operator-golang-...
           most_recent_release_branch=$(
             git branch -r \
-              | grep 'network-operator-[0-9]*\.[0-9]*\.x' \
+              | grep -E '^\s*[^/]+/network-operator-[0-9]+\.[0-9]+\.x$' \
               | sed 's#.*/##' \
               | sed 's/network-operator-//' \
               | sort -V \
