@@ -85,3 +85,24 @@ updates:
         exclude-patterns:
           - "github.com/containernetworking/*"
     target-branch: network-operator-26.4.x
+  - package-ecosystem: "docker" # See documentation for possible values
+    directory: "/.github/actions/retest-action" # Location of package manifests
+    schedule:
+      interval: "weekly"
+    target-branch: network-operator-26.7.x
+  - package-ecosystem: "github-actions" # See documentation for possible values
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "weekly"
+    target-branch: network-operator-26.7.x
+  - package-ecosystem: "gomod" # See documentation for possible values
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "weekly"
+    groups:
+      golang:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github.com/containernetworking/*"
+    target-branch: network-operator-26.7.x
