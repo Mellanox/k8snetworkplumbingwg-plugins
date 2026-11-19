@@ -13,15 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Resolves the go.mod/go.sum/vendor conflicts left behind by an in-progress
-# merge of upstream into this fork. Dependabot keeps this fork's dependencies
-# ahead of upstream, so both sides regularly rewrite the same block of go.mod
-# and the merge stops. Every other kind of conflict needs a human.
+# Resolves the go.mod/go.sum and GitHub Actions version conflicts left
+# behind by an in-progress merge of upstream into this fork. Dependabot keeps
+# this fork's dependencies ahead of upstream, so both sides regularly rewrite
+# the same block of go.mod, or the same `uses: owner/action@vN` line of a
+# workflow, and the merge stops. Every other kind of conflict needs a human.
 
 set -euo pipefail
 
 conflicted=$(git diff --name-only --diff-filter=U)
-unresolvable=$(grep -vE '^(go\.mod|go\.sum|vendor/)' <<<"$conflicted" || true)
+unresolvable=$(grep -vE '^(go\.mod|go\.sum|\.github/workflows/[^/]+\.ya?ml)$' <<<"$conflicted" || true)
 if [ -n "$unresolvable" ]; then
 	echo "::error::merge hit conflicts that must be resolved by hand:"
 	echo "$unresolvable"
@@ -39,6 +40,47 @@ is_newer() {
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+
+# Workflows: both sides bumped the same action, e.g.
+#   <<<<<<< HEAD
+#           uses: actions/setup-go@v6
+#   =======
+#           uses: actions/setup-go@v7
+#   >>>>>>> upstream/main
+# Keep the newer one. Any other kind of hunk needs a human.
+for workflow in $(grep -E '^\.github/workflows/' <<<"$conflicted" || true); do
+	python3 - "$workflow" <<'PY'
+import re
+import sys
+
+path = sys.argv[1]
+USES = re.compile(r"^(\s*-?\s*uses:\s*)([^@\s]+)@(\S+)\s*$")
+
+
+def version_key(ref):
+    return [int(p) if p.isdigit() else 0 for p in re.split(r"[^0-9]+", ref) if p]
+
+
+out, lines, i = [], open(path).read().splitlines(keepends=True), 0
+while i < len(lines):
+    if not lines[i].startswith("<<<<<<< "):
+        out.append(lines[i])
+        i += 1
+        continue
+    sep = next(j for j in range(i, len(lines)) if lines[j].startswith("=======") )
+    end = next(j for j in range(sep, len(lines)) if lines[j].startswith(">>>>>>> "))
+    ours, theirs = lines[i + 1 : sep], lines[sep + 1 : end]
+    m_o = USES.match(ours[0]) if len(ours) == 1 else None
+    m_t = USES.match(theirs[0]) if len(theirs) == 1 else None
+    if not (m_o and m_t and m_o.group(2) == m_t.group(2)):
+        sys.exit(f"::error::{path}: conflict that must be resolved by hand:\n" + "".join(lines[i : end + 1]))
+    newer = theirs if version_key(m_t.group(3)) > version_key(m_o.group(3)) else ours
+    out.extend(newer)
+    i = end + 1
+open(path, "w").write("".join(out))
+PY
+	git add "$workflow"
+done
 
 if is_conflicted go.mod; then
 	git show :2:go.mod >"$tmp/ours.mod"
@@ -74,7 +116,6 @@ if is_conflicted go.sum; then
 fi
 
 go mod tidy
-go mod vendor
 go build ./...
 
-git add go.mod go.sum vendor
+git add go.mod go.sum

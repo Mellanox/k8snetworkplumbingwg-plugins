@@ -14,12 +14,11 @@ ENV TARGETARCH=${TARGETARCH:-amd64}
 # Map Docker ARCH to Go ARCH (e.g. arm/v7 -> arm)
 ENV GOARCH=${TARGETARCH}
 ENV CGO_ENABLED=0
-ENV GOFLAGS="-mod=vendor"
 
 WORKDIR /usr/src/plugins
 
 COPY go.mod go.sum ./
-COPY vendor ./vendor
+RUN go mod download
 COPY pkg ./pkg
 COPY plugins ./plugins
 COPY cmd ./cmd
