@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: .github/go-version
       - uses: ibiqlik/action-yamllint@v3
@@ -22,22 +22,21 @@ jobs:
           format: auto
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.10.0
+          version: v2.14.0
           args: -v
-  verify-vendor:
-    name: Verify vendor directory
+  verify-modules:
+    name: Verify Go modules
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - name: Install Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: .github/go-version
-      - name: Check module vendoring
+      - name: Check Go modules
         run: |
-          go mod tidy
-          go mod vendor
-          test -z "$(git status --porcelain)" || (echo "please run 'go mod tidy && go mod vendor', and submit your changes"; exit 1)
+          go mod tidy -diff
+          go mod verify
   build:
     name: Build all linux architectures
     needs: lint
@@ -45,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: .github/go-version
       - name: Build on all supported architectures
@@ -61,10 +60,15 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Install kernel module
+      - name: Install kernel modules
         run: |
           sudo apt-get update
-          sudo apt-get install linux-modules-extra-$(uname -r)
+          kernel_release="$(uname -r)"
+          sudo apt-get install -y "linux-modules-${kernel_release}"
+          # Newer kernels include extra modules in the regular package.
+          if apt-cache show "linux-modules-extra-${kernel_release}" >/dev/null 2>&1; then
+            sudo apt-get install -y "linux-modules-extra-${kernel_release}"
+          fi
       - name: Install nftables
         # ensure that bridged traffic goes through netfilter
         run: |
@@ -76,7 +80,7 @@ jobs:
           sudo systemctl disable --now dnsmasq
       - uses: actions/checkout@v7
       - name: setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: .github/go-version
       - name: Set up Go for root
@@ -107,7 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: .github/go-version
       - name: test

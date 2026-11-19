@@ -52,6 +52,37 @@ var _ = Describe("IP ranges", func() {
 			Gateway:    net.IP{192, 0, 2, 1},
 		}))
 	})
+	It("should reject an explicit gateway outside the subnet", func() {
+		snstr := "10.0.0.0/24"
+		r := Range{
+			Subnet:  mustSubnet(snstr),
+			Gateway: net.ParseIP("192.168.1.1"),
+		}
+
+		err := r.Canonicalize()
+		Expect(err).Should(MatchError("gateway 192.168.1.1 not in network 10.0.0.0/24"))
+	})
+	It("should reject an explicit gateway with mismatched address family", func() {
+		snstr := "10.0.0.0/24"
+		r := Range{
+			Subnet:  mustSubnet(snstr),
+			Gateway: net.ParseIP("2001:db8::1"),
+		}
+
+		err := r.Canonicalize()
+		Expect(err).Should(MatchError("gateway 2001:db8::1 not in network 10.0.0.0/24"))
+	})
+	It("should accept an explicit valid gateway inside the subnet", func() {
+		snstr := "10.0.0.0/24"
+		r := Range{
+			Subnet:  mustSubnet(snstr),
+			Gateway: net.ParseIP("10.0.0.254"),
+		}
+
+		err := r.Canonicalize()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(r.Gateway).To(Equal(net.IP{10, 0, 0, 254}))
+	})
 	It("should reject ipv4 subnet using a masked address", func() {
 		snstr := "192.0.2.12/24"
 		r := Range{Subnet: mustSubnet(snstr)}
@@ -118,6 +149,26 @@ var _ = Describe("IP ranges", func() {
 		}
 		err = r.Canonicalize()
 		Expect(err).Should(MatchError("RangeStart 192.0.2.50 not in network 192.0.2.0/24"))
+	})
+
+	It("should reject a RangeStart that lands after the defaulted RangeEnd", func() {
+		// RangeStart is checked before RangeEnd is defaulted, so a broadcast
+		// RangeStart (one above the default RangeEnd) used to slip through.
+		r := Range{
+			Subnet:     mustSubnet("192.0.2.0/24"),
+			RangeStart: net.ParseIP("192.0.2.255"),
+		}
+		err := r.Canonicalize()
+		Expect(err).Should(MatchError("RangeStart 192.0.2.255 is after RangeEnd 192.0.2.254 in network 192.0.2.0/24"))
+
+		// The same gap at the top of the family, where this shape used to
+		// reach the iterator and panic.
+		r = Range{
+			Subnet:     mustSubnet("255.255.255.252/30"),
+			RangeStart: net.ParseIP("255.255.255.255"),
+		}
+		err = r.Canonicalize()
+		Expect(err).Should(MatchError("RangeStart 255.255.255.255 is after RangeEnd 255.255.255.254 in network 255.255.255.252/30"))
 	})
 
 	It("should parse all fields correctly", func() {
